@@ -13,16 +13,61 @@ oauth2Client.setCredentials(tokens)
 
 const calendar = google.calendar({ version: "v3", auth: oauth2Client })
 
+const createEventSchema = z.object({
+    summary: z.string().describe("This is the title of the event"),
+    description: z.string().describe("This is the description of the event"),
+    start: z.object({
+        dateTime: z.string().describe("This is the start time of the event in UTC string"),
+        timeZone: z.string().describe("This is the timeZone of the event"),
+    }),
+    end: z.object({
+        dateTime: z.string().describe("This is the end time of the event in UTC string"),
+        timeZone: z.string().describe("This is the timeZone of the event"),
+    }),
+    attendees: z.array(z.object({
+        email: z.string().describe("This is the email of the attendee"),
+        displayName: z.string().describe("This is the display name of the attendee"),
+    }))
+})
+
+type CreateEventData = z.infer<typeof createEventSchema>
+
 export const createEventTool = tool(
-    async () => {
-        return `The meeting has been created`
+    async (params) => {
+        try {
+            console.log("Params: ", params);
+            const { summary, description, start, end, attendees } = params as CreateEventData
+
+            const response = await calendar.events.insert({
+                calendarId: "jatharvedant16@gmail.com",
+                conferenceDataVersion: 1,
+                requestBody: {
+                    summary,
+                    description,
+                    start,
+                    end,
+                    attendees,
+                    conferenceData: {
+                        createRequest: {
+                            requestId: crypto.randomUUID(),
+                            conferenceSolutionKey: {
+                                type: "hangoutsMeet"
+                            }
+                        }
+                    }
+                },
+            })
+
+            return `The meeting has been created`
+        } catch (error) {
+            console.log("Error: ", error);
+        }
+        return "Failed to create the event"
     },
     {
-        name: "Ceate_Event_Tool",
+        name: "Create_Event_Tool",
         description: "Call to create a event",
-        schema: z.object({
-            query: z.string().describe("This is the query with the help of which a event has to be created in the google calendar")
-        })
+        schema: createEventSchema
     }
 )
 
@@ -58,7 +103,6 @@ export const getEventTool = tool(
                 }
             })
 
-            console.log("events: ", events);
 
             return JSON.stringify(events)
         } catch (error) {

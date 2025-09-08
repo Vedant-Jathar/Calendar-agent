@@ -1,8 +1,10 @@
 import { ChatGroq } from "@langchain/groq";
 import { createEventTool, getEventTool } from "./tools";
-import { END, MessagesAnnotation, StateGraph } from "@langchain/langgraph";
+import { END, MemorySaver, MessagesAnnotation, StateGraph } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import type { AIMessage } from "@langchain/core/messages";
+import { createInterface } from "node:readline/promises"
+import { stdin, stdout } from "node:process";
 
 const tools = [createEventTool, getEventTool]
 
@@ -37,19 +39,30 @@ const graph = new StateGraph(MessagesAnnotation)
         tools: "tools"
     })
 
-const app = graph.compile()
+const checkpointer = new MemorySaver()
+
+const app = graph.compile({ checkpointer })
+
+const rl = createInterface({ input: stdin, output: stdout })
 
 async function main() {
-    const result = await app.invoke({
-        messages: [
-            {
-                role: "user",
-                content: "When is Physics confernce?"
-            }
-        ]
-    })
+    while (true) {
+        const userQuery = await rl.question("You: ")
+        if (userQuery === "bye") {
+            break
+        }
+        const result = await app.invoke({
+            messages: [
+                {
+                    role: "user",
+                    content: userQuery
+                }
+            ]
+        }, { configurable: { thread_id: 1 } })
+        console.log("Assistant: ", result.messages[result.messages.length - 1]?.content);
+    }
 
-    console.log("result:", result.messages[result.messages.length - 1]?.content);
+    rl.close()
 }
 
 main()
