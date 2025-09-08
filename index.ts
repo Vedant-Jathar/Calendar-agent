@@ -44,7 +44,7 @@ async function main() {
         messages: [
             {
                 role: "user",
-                content: "Can you create meeting with Ram on 5th september?"
+                content: "When is Physics confernce?"
             }
         ]
     })
